@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      gettext-parser:
+        specifier: ^9.1.1
+        version: 9.1.1
     devDependencies:
       '@types/gettext-parser':
         specifier: ^9.0.0
@@ -35,9 +39,6 @@ importers:
       gettext-extractor:
         specifier: 4.0.6
         version: 4.0.6
-      gettext-parser:
-        specifier: 9.1.1
-        version: 9.1.1
       knip:
         specifier: ^6.31.0
         version: 6.32.2
