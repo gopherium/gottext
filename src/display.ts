@@ -17,3 +17,13 @@ export function rememberLocale(locale: string): void {
 export function displayLocale(): string {
 	return settled
 }
+
+/**
+ * Returns a moment as a date in the locale the interface stands in.
+ * @param at - The moment, as a date or as the text a server stored.
+ * @param options - How much of the date to show.
+ * @returns The date to show, empty when there is no moment.
+ */
+export function formatDate(at: Date | string, options?: Intl.DateTimeFormatOptions): string {
+	return at === '' ? '' : new Date(at).toLocaleDateString(settled, options)
+}

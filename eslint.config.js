@@ -10,6 +10,7 @@ export default [
 		ignores: ['dist/**', 'coverage/**'],
 	},
 	{
+		files: ['**/*.{ts,js}'],
 		languageOptions: {
 			parser: tseslint.parser,
 		},
@@ -18,7 +19,7 @@ export default [
 		},
 	},
 	{
-		ignores: ['test/**'],
+		files: ['src/**/*.ts'],
 		languageOptions: {
 			parser: tseslint.parser,
 		},
@@ -29,7 +30,7 @@ export default [
 		},
 	},
 	{
-		ignores: ['test/**'],
+		files: ['src/**/*.ts'],
 		languageOptions: {
 			parser: tseslint.parser,
 		},

@@ -15,18 +15,29 @@ export interface CatalogEntry {
 	load: (locale: string) => Promise<Catalog | undefined>
 }
 
+/** LocaleOptions carries what a start needs beyond its domains. */
+export interface LocaleOptions {
+	/** defaultLocale is the locale the sources are written in, which loads no catalogue. */
+	defaultLocale?: string
+}
+
 /**
  * Resolves the locale, loads every catalogue in parallel, and sets each under its domain.
  * @param resolve - Answers the locale the interface should stand in.
  * @param entries - The text domains to load.
+ * @param options - What the start needs beyond its domains.
  * @returns The settled locale.
  */
 export async function startLocale(
 	resolve: () => Promise<string>,
 	entries: CatalogEntry[],
+	options: LocaleOptions = {},
 ): Promise<string> {
 	const locale = await resolve()
 	rememberLocale(locale)
+	if (locale === options.defaultLocale) {
+		return locale
+	}
 	const loaded = await Promise.all(entries.map((entry) => entry.load(locale)))
 	entries.forEach((entry, at) => {
 		const catalog = loaded[at]
