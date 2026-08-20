@@ -2,10 +2,8 @@
 
 import { setLocaleData } from '@wordpress/i18n'
 
+import type { Catalog } from './catalog.js'
 import { rememberLocale } from './display.js'
-
-/** Catalog is one compiled gettext catalogue as setLocaleData consumes it. */
-export type Catalog = Record<string, string[] | Record<string, string>>
 
 /** CatalogEntry names one text domain beside how its catalogue loads. */
 export interface CatalogEntry {
