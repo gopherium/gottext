@@ -150,6 +150,7 @@ function restoring(
 		held.translations[context][msgid] = entry
 		return
 	}
+	arrived.msgid_plural ??= entry.msgid_plural
 	arrived.msgstr = mergedForms(entry.msgstr, arrived.msgstr)
 }
 

@@ -258,6 +258,34 @@ test('names a translation carrying a placeholder that names nothing', () => {
 	expect(mismatched(bare, naming)).toEqual(['%(count)d post'])
 })
 
+test('passes a translation keeping the bare placeholder its message names', () => {
+	const naming = 'msgid "Disable %s"\nmsgstr ""\n'
+	const answered = 'msgid "Disable %s"\nmsgstr "Desactivar a %s"\n'
+
+	expect(mismatched(answered, naming)).toEqual([])
+})
+
+test('names a translation dropping the bare placeholder its message names', () => {
+	const naming = 'msgid "Disable %s"\nmsgstr ""\n'
+	const dropped = 'msgid "Disable %s"\nmsgstr "Desactivar"\n'
+
+	expect(mismatched(dropped, naming)).toEqual(['Disable %s'])
+})
+
+test('passes a translation reordering the positional placeholders its message names', () => {
+	const naming = 'msgid "%1$s of %2$s"\nmsgstr ""\n'
+	const answered = 'msgid "%1$s of %2$s"\nmsgstr "%2$s de %1$s"\n'
+
+	expect(mismatched(answered, naming)).toEqual([])
+})
+
+test('names a translation answering a named placeholder with a bare one', () => {
+	const naming = 'msgid "%(field)s declared."\nmsgstr ""\n'
+	const swapped = 'msgid "%(field)s declared."\nmsgstr "%s declarado."\n'
+
+	expect(mismatched(swapped, naming)).toEqual(['%(field)s declared.'])
+})
+
 test('passes a message no translation answers yet', () => {
 	const naming = 'msgid "%(count)d post"\nmsgstr ""\n'
 	const waiting = 'msgid "%(count)d post"\nmsgstr ""\n'
