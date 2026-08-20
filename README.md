@@ -13,11 +13,11 @@ translations with POEditor without ever removing one.
 pnpm add @gopherium/gottext @wordpress/i18n
 ```
 
-The build and sync entries need two more packages as development
-dependencies:
+The build entry extracts messages from your sources, which needs one
+more package as a development dependency:
 
 ```sh
-pnpm add -D gettext-extractor gettext-parser
+pnpm add -D gettext-extractor
 ```
 
 ## License

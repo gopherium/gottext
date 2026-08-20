@@ -20,6 +20,7 @@
 		"node": ">=22"
 	},
 	"files": [
+		"CHANGELOG.md",
 		"dist",
 		"NOTICE"
 	],
@@ -48,16 +49,15 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"dependencies": {
+		"gettext-parser": "^9.1.1"
+	},
 	"peerDependencies": {
 		"@wordpress/i18n": ">=6.26.0 <7.0.0",
-		"gettext-extractor": ">=4.0.6 <5.0.0",
-		"gettext-parser": ">=9.1.1 <10.0.0"
+		"gettext-extractor": ">=4.0.6 <5.0.0"
 	},
 	"peerDependenciesMeta": {
 		"gettext-extractor": {
-			"optional": true
-		},
-		"gettext-parser": {
 			"optional": true
 		}
 	},
@@ -71,7 +71,6 @@
 		"eslint-plugin-sonarjs": "^4.2.0",
 		"eslint-plugin-tsdoc": "^0.5.2",
 		"gettext-extractor": "4.0.6",
-		"gettext-parser": "9.1.1",
 		"knip": "^6.31.0",
 		"oxlint": "^1.71.0",
 		"typescript": "~6.0.2",
