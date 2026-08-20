@@ -78,6 +78,26 @@ test('names its messages in a settled order however the sources are read', () =>
 	expect(held.indexOf('msgid "Apple"')).toBeLessThan(held.indexOf('msgid "Zebra"'))
 })
 
+test('keeps the safety baseline whatever exclusions it is handed', () => {
+	const root = rootWith({
+		'src/a.ts': "__('Real message', 'probe')\n",
+		'src/a.d.ts': "__('Declared message', 'probe')\n",
+		'src/a.test.ts': "__('Suite message', 'probe')\n",
+		'src/node_modules/thing/v.ts': "__('Vendored message', 'probe')\n",
+		'src/keep/x.ts': "__('Kept message', 'probe')\n",
+		'src/skip/x.ts': "__('Skipped message', 'probe')\n",
+	})
+
+	const held = pot({ domain: 'probe', root, sources: SOURCES, ignored: ['**/skip/**'] }).toString()
+
+	expect(held).toContain('Real message')
+	expect(held).toContain('Kept message')
+	expect(held).not.toContain('Skipped message')
+	expect(held).not.toContain('Declared message')
+	expect(held).not.toContain('Suite message')
+	expect(held).not.toContain('Vendored message')
+})
+
 test('walks no Go roots unless it is given some', () => {
 	const root = rootWith({ 'src/a.ts': "__('Older posts', 'probe')\n" })
 

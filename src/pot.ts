@@ -38,7 +38,7 @@ export interface PotOptions {
 	root: string
 	/** sources are the globs holding every message, read from the root. */
 	sources: string[]
-	/** ignored are the paths inside those globs that ship no message. */
+	/** ignored are the paths inside those globs that ship no message, read beside the baseline. */
 	ignored?: string[]
 	/** goRoots are the directories a Go walk reads, none by default. */
 	goRoots?: string[]
@@ -160,7 +160,7 @@ export function messages(options: PotOptions): Found[] {
 	for (const pattern of options.sources) {
 		parser.parseFilesGlob(pattern, {
 			cwd: options.root,
-			ignore: options.ignored ?? IGNORED,
+			ignore: [...IGNORED, ...(options.ignored ?? [])],
 			absolute: true,
 		})
 	}
