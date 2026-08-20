@@ -20,5 +20,6 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run cover
       - run: pnpm run lint
+      - run: pnpm exec knip
       - run: pnpm run build
       - run: node -e "import('./dist/index.js').then(() => console.log('dist loads'))"
