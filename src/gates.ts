@@ -2,7 +2,7 @@
 
 import { po } from 'gettext-parser'
 
-import { METADATA, keyOf } from './catalog.js'
+import { METADATA, held, keyOf } from './catalog.js'
 
 /**
  * Returns every key a catalogue carries a filled translation for.
@@ -51,7 +51,7 @@ export function orphaned(source: string, template: string): string[] {
 	const carried: string[] = []
 	for (const [context, entries] of Object.entries(po.parse(source).translations)) {
 		for (const msgid of Object.keys(entries)) {
-			if (msgid !== METADATA && named[context]?.[msgid] === undefined) {
+			if (msgid !== METADATA && held(named[context], msgid) === undefined) {
 				carried.push(keyOf(context, msgid))
 			}
 		}
@@ -113,11 +113,11 @@ function answersPlaceholders(form: string, message: string): boolean {
  * @returns The keys whose translation would not render.
  */
 export function mismatched(source: string, template: string): string[] {
-	const held = po.parse(source).translations
+	const carried = po.parse(source).translations
 	const broken: string[] = []
 	for (const [context, entries] of Object.entries(po.parse(template).translations)) {
 		for (const [msgid, entry] of Object.entries(entries)) {
-			const answer = held[context]?.[msgid]
+			const answer = held(carried[context], msgid)
 			if (msgid === METADATA || answer === undefined) {
 				continue
 			}

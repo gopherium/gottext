@@ -269,6 +269,15 @@ test('restores an answer the export omits entirely', () => {
 	expect(held).toContain('Entradas nuevas')
 })
 
+test('keeps an answer whose message shares its name with a prototype member', () => {
+	const naming = 'msgid "constructor"\nmsgstr ""\n'
+	const ours = 'msgid ""\nmsgstr ""\n\nmsgid "constructor"\nmsgstr "constructor"\n'
+	const theirs = 'msgid ""\nmsgstr ""\n'
+
+	expect(() => keepingAnswers(ours, theirs, naming)).not.toThrow()
+	expect(keepingAnswers(ours, theirs, naming)).toContain('msgid "constructor"')
+})
+
 test('restores an answer under a context the export does not know', () => {
 	const naming = 'msgctxt "posts"\nmsgid "Older"\nmsgstr ""\n'
 	const ours = 'msgid ""\nmsgstr ""\n\nmsgctxt "posts"\nmsgid "Older"\nmsgstr "Antiguas"\n'

@@ -39,7 +39,8 @@ export function compileCatalog(source: string): Catalog {
 export function serializeCatalog(catalog: Catalog): string {
 	const keys = Object.keys(catalog).filter((held) => held !== METADATA)
 	keys.sort((left, right) => Number(left > right) - Number(left < right))
-	const lines = [`${JSON.stringify(METADATA)}:${JSON.stringify(catalog[METADATA])}`]
+	const metadata = catalog[METADATA] ?? {}
+	const lines = [`${JSON.stringify(METADATA)}:${JSON.stringify(metadata)}`]
 	for (const key of keys) {
 		lines.push(`${JSON.stringify(key)}:${JSON.stringify(catalog[key])}`)
 	}

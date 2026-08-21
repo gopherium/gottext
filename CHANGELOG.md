@@ -4,6 +4,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/). While at 0.x,
 minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
+## [0.1.1] - 2026-08-21
+
+### Added
+
+- `resolvedVersions` and `pinnedVersions`, which read a pnpm lockfile and the
+  manifests that pin a package, so a repository can gate itself against
+  resolving two copies of anything that holds module state.
+
+### Fixed
+
+- A message sharing its name with an object prototype member, `constructor` and
+  `toString` among them, no longer crashes the gates or slips past the orphan
+  check.
+- `serializeCatalog` answers readable JSON for a catalogue carrying no metadata
+  entry, where it used to write the bare word undefined.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

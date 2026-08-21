@@ -3,7 +3,7 @@
 import { po } from 'gettext-parser'
 import type { GetTextTranslation, GetTextTranslations } from 'gettext-parser'
 
-import { METADATA } from './catalog.js'
+import { METADATA, held as ownEntry } from './catalog.js'
 
 /** COMPILED is how every catalogue this brick writes is laid out. */
 const COMPILED = { foldLength: 0, eol: '\n' } as const
@@ -108,7 +108,7 @@ export function namedByTemplate(incoming: string, template: string): string {
 	const held = po.parse(incoming)
 	for (const [context, entries] of Object.entries(held.translations)) {
 		for (const msgid of Object.keys(entries)) {
-			if (msgid !== METADATA && named[context]?.[msgid] === undefined) {
+			if (msgid !== METADATA && ownEntry(named[context], msgid) === undefined) {
 				delete held.translations[context][msgid]
 			}
 		}
@@ -144,7 +144,7 @@ function restoring(
 	msgid: string,
 	entry: GetTextTranslation,
 ): void {
-	const arrived = held.translations[context]?.[msgid]
+	const arrived = ownEntry(held.translations[context], msgid)
 	if (arrived === undefined) {
 		held.translations[context] ??= {}
 		held.translations[context][msgid] = entry
@@ -167,7 +167,7 @@ export function keepingAnswers(current: string, incoming: string, template: stri
 	const held = po.parse(incoming)
 	for (const [context, entries] of Object.entries(ours)) {
 		for (const [msgid, entry] of Object.entries(entries)) {
-			const wanted = msgid !== METADATA && named[context]?.[msgid] !== undefined
+			const wanted = msgid !== METADATA && ownEntry(named[context], msgid) !== undefined
 			if (wanted && entry.msgstr.some((form) => form !== '')) {
 				restoring(held, context, msgid, entry)
 			}

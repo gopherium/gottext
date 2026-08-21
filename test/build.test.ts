@@ -299,6 +299,27 @@ test('passes a translation reordering the positional placeholders its message na
 	expect(mismatched(answered, naming)).toEqual([])
 })
 
+test('names a message that shares its name with a prototype member', () => {
+	const naming = 'msgid "Older posts"\nmsgstr ""\n'
+	const stale = 'msgid ""\nmsgstr ""\n\nmsgid "constructor"\nmsgstr "constructor"\n'
+
+	expect(orphaned(stale, naming)).toEqual(['constructor'])
+})
+
+test('reads a template naming a prototype member the catalogue does not answer', () => {
+	const naming = 'msgid ""\nmsgstr ""\n\nmsgid "toString"\nmsgstr ""\n'
+	const held = 'msgid ""\nmsgstr ""\n'
+
+	expect(() => mismatched(held, naming)).not.toThrow()
+	expect(mismatched(held, naming)).toEqual([])
+})
+
+test('serializes a catalogue carrying no metadata entry as readable JSON', () => {
+	const held = serializeCatalog({ Saved: ['Guardado'] })
+
+	expect(() => JSON.parse(held)).not.toThrow()
+})
+
 test('names a translation answering a named placeholder with a bare one', () => {
 	const naming = 'msgid "%(field)s declared."\nmsgstr ""\n'
 	const swapped = 'msgid "%(field)s declared."\nmsgstr "%s declarado."\n'
