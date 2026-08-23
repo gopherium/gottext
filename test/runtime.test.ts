@@ -3,7 +3,7 @@
 import { __, getLocaleData } from '@wordpress/i18n'
 import { expect, test } from 'vitest'
 
-import { displayLocale, startLocale } from '../src/index.js'
+import { displayLocale, rememberLocale, startLocale } from '../src/index.js'
 import type { Catalog } from '../src/index.js'
 
 const CATALOG: Catalog = {
@@ -21,6 +21,21 @@ test('remembers the settled locale for display', async () => {
 	await startLocale(async () => 'es-ES', [])
 
 	expect(displayLocale()).toBe('es-ES')
+})
+
+test('holds the default locale from the moment the start is asked', async () => {
+	rememberLocale('de-DE')
+	let release: (locale: string) => void = () => {}
+	const pending = startLocale(
+		() => new Promise((resolve) => { release = resolve }),
+		[],
+		{ defaultLocale: 'es-ES' },
+	)
+
+	expect(displayLocale()).toBe('es-ES')
+
+	release('es-ES')
+	await pending
 })
 
 test('sets a loaded catalogue under its domain before returning', async () => {

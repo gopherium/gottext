@@ -4,6 +4,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/). While at 0.x,
 minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
+## [Unreleased]
+
+### Added
+
+- `errorText`, which shows a refused answer in the reader's own language,
+  filling the template its code names from the values the answer carries and
+  speaking the server's own words when no template fits. The caller supplies
+  the templates and the words to fall back on, so both stay translatable.
+- A `./testing` entry with `resetLocale`, which takes every named domain and
+  the display locale back to their sources between tests.
+- `globCatalogs`, which turns the lazy chunks a bundler globbed into the loader
+  a catalogue entry wants, reading the locale from each file's own name.
+
+### Changed
+
+- `startLocale` shows the default locale from the moment it is asked, so
+  `displayLocale` and `formatDate` never answer en-US to a consumer whose
+  sources are written in another locale.
+
 ## [0.1.1] - 2026-08-21
 
 ### Added

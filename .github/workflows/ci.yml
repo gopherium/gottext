@@ -22,4 +22,4 @@ jobs:
       - run: pnpm run lint
       - run: pnpm exec knip
       - run: pnpm run build
-      - run: node -e "import('./dist/index.js').then(() => console.log('dist loads'))"
+      - run: node -e "Promise.all(['@gopherium/gottext', '@gopherium/gottext/build', '@gopherium/gottext/sync', '@gopherium/gottext/testing'].map((entry) => import(entry))).then(() => console.log('every entry loads'))"
