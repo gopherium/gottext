@@ -15,7 +15,7 @@ export interface CatalogEntry {
 
 /** LocaleOptions carries what a start needs beyond its domains. */
 export interface LocaleOptions {
-	/** defaultLocale is the sources' own locale, shown until the resolver settles and loading no catalogue. */
+	/** defaultLocale is the sources' own locale, shown while the resolver runs and loading no catalogue of its own. */
 	defaultLocale?: string
 }
 
