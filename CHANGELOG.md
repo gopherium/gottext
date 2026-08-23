@@ -6,6 +6,11 @@ minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
 ## [Unreleased]
 
+### Added
+
+- A `./testing` entry with `resetLocale`, which takes every named domain and
+  the display locale back to their sources between tests.
+
 ### Changed
 
 - `startLocale` shows the default locale from the moment it is asked, so
