@@ -3,4 +3,5 @@
 export { displayLocale, formatDate, rememberLocale } from './display.js'
 export { startLocale } from './start.js'
 export type { CatalogEntry, LocaleOptions } from './start.js'
-export type { Catalog } from './catalog.js'
+export { globCatalogs } from './catalog.js'
+export type { Catalog, Chunks } from './catalog.js'

@@ -10,6 +10,8 @@ minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
 - A `./testing` entry with `resetLocale`, which takes every named domain and
   the display locale back to their sources between tests.
+- `globCatalogs`, which turns the lazy chunks a bundler globbed into the loader
+  a catalogue entry wants, reading the locale from each file's own name.
 
 ### Changed
 
