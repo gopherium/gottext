@@ -2,6 +2,8 @@
 
 import { sprintf } from '@wordpress/i18n'
 
+import { held } from './catalog.js'
+
 /** RefusedAnswer is what a server answered when it turned a request away. */
 export interface RefusedAnswer {
 	/** message is the server's own prose, empty when it said nothing readable. */
@@ -24,7 +26,7 @@ const PLACEHOLDERS =
  */
 function filled(template: string, meta: Record<string, unknown>): boolean {
 	for (const match of template.matchAll(PLACEHOLDERS)) {
-		if (meta[match[1]] === undefined) {
+		if (held(meta, match[1]) === undefined) {
 			return false
 		}
 	}
@@ -44,7 +46,7 @@ export function errorText(
 	fallback: string,
 ): string {
 	const spoken = refused.message === '' ? fallback : refused.message
-	const template = refused.code === undefined ? undefined : templates[refused.code]
+	const template = refused.code === undefined ? undefined : held(templates, refused.code)
 	const meta = refused.meta ?? {}
 	if (template === undefined || !filled(template, meta)) {
 		return spoken

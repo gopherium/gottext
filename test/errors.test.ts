@@ -80,6 +80,24 @@ test('fills a template asking for widths and decimals', () => {
 	expect(shown).toBe('You hold 9.00 of the 12.5 asked for.')
 })
 
+test('speaks the answer when its code names something every object inherits', () => {
+	for (const code of ['constructor', 'toString', 'hasOwnProperty']) {
+		const shown = errorText({ message: 'the server said this', code }, TEMPLATES, FALLBACK)
+
+		expect(shown).toBe('the server said this')
+	}
+})
+
+test('speaks the answer when a template names a value every object inherits', () => {
+	const shown = errorText(
+		{ message: 'the server said this', code: 'inherited', meta: {} },
+		{ inherited: 'Value is %(constructor)s.' },
+		FALLBACK,
+	)
+
+	expect(shown).toBe('the server said this')
+})
+
 test('falls back to the words the caller supplied when the answer says nothing', () => {
 	const shown = errorText({ message: '' }, TEMPLATES, FALLBACK)
 
