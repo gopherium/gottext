@@ -4,6 +4,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/). While at 0.x,
 minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
+## [Unreleased]
+
+### Changed
+
+- `startLocale` shows the default locale from the moment it is asked, so
+  `displayLocale` and `formatDate` never answer en-US to a consumer whose
+  sources are written in another locale.
+
 ## [0.1.1] - 2026-08-21
 
 ### Added

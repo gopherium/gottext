@@ -15,7 +15,7 @@ export interface CatalogEntry {
 
 /** LocaleOptions carries what a start needs beyond its domains. */
 export interface LocaleOptions {
-	/** defaultLocale is the locale the sources are written in, which loads no catalogue. */
+	/** defaultLocale is the sources' own locale, shown until the resolver settles and loading no catalogue. */
 	defaultLocale?: string
 }
 
@@ -31,6 +31,9 @@ export async function startLocale(
 	entries: CatalogEntry[],
 	options: LocaleOptions = {},
 ): Promise<string> {
+	if (options.defaultLocale !== undefined) {
+		rememberLocale(options.defaultLocale)
+	}
 	const locale = await resolve()
 	rememberLocale(locale)
 	if (locale === options.defaultLocale) {
