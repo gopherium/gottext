@@ -4,7 +4,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/). While at 0.x,
 minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
-## [Unreleased]
+## [0.2.0] - 2026-08-24
 
 ### Added
 
@@ -12,8 +12,8 @@ minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
   filling the template its code names from the values the answer carries and
   speaking the server's own words when no template fits. The caller supplies
   the templates and the words to fall back on, so both stay translatable.
-- A `./testing` entry with `resetLocale`, which takes every named domain and
-  the display locale back to their sources between tests.
+- A `./testing` entry with `resetLocale`, which takes every text domain and the
+  display locale back to their sources between tests.
 - `globCatalogs`, which turns the lazy chunks a bundler globbed into the loader
   a catalogue entry wants, reading the locale from each file's own name.
 
