@@ -12,8 +12,9 @@ export interface RefusedAnswer {
 	meta?: Record<string, unknown>
 }
 
-/** PLACEHOLDERS matches the named places a template asks the answer to fill in. */
-const PLACEHOLDERS = /%\((\w+)\)[sd]/g
+/** PLACEHOLDERS matches the named places a template asks the answer to fill in, as sprintf reads them. */
+const PLACEHOLDERS =
+	/%\(([$_a-zA-Z][$_a-zA-Z0-9]*)\)[ +0#-]*\d*(?:\.(?:\d+|\*))?(?:ll|[lhqL])?[cduxXefgsp]/g
 
 /**
  * Reports whether the answer carries every value the template names.

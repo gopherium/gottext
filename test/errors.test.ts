@@ -60,6 +60,26 @@ test('speaks the answer when the template asks for values and none arrived', () 
 	expect(shown).toBe('locale refused')
 })
 
+test('speaks the answer when a template asking for a decimal lacks its value', () => {
+	const shown = errorText(
+		{ message: 'the balance is short', code: 'short', meta: { held: 9 } },
+		{ short: 'You hold %(held).2f of the %(needed).2f asked for.' },
+		FALLBACK,
+	)
+
+	expect(shown).toBe('the balance is short')
+})
+
+test('fills a template asking for widths and decimals', () => {
+	const shown = errorText(
+		{ message: 'raw', code: 'short', meta: { held: 9, needed: 12.5 } },
+		{ short: 'You hold %(held)05.2f of the %(needed).1f asked for.' },
+		FALLBACK,
+	)
+
+	expect(shown).toBe('You hold 9.00 of the 12.5 asked for.')
+})
+
 test('falls back to the words the caller supplied when the answer says nothing', () => {
 	const shown = errorText({ message: '' }, TEMPLATES, FALLBACK)
 
