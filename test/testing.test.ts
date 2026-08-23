@@ -12,22 +12,30 @@ const CATALOG: Catalog = {
 	'Older posts': ['Entradas anteriores'],
 }
 
-test('takes the loaded domains back to their sources', () => {
-	setLocaleData(CATALOG, 'gottext-reset-probe')
-	rememberLocale('es-ES')
+test('takes every loaded domain back to its sources', () => {
+	setLocaleData(CATALOG, 'gottext-reset-one')
+	setLocaleData(CATALOG, 'gottext-reset-two')
+	setLocaleData(CATALOG)
 
-	resetLocale('en-US', ['gottext-reset-probe'])
+	resetLocale()
 
-	expect(__('Older posts', 'gottext-reset-probe')).toBe('Older posts')
-	expect(displayLocale()).toBe('en-US')
+	expect(__('Older posts', 'gottext-reset-one')).toBe('Older posts')
+	expect(__('Older posts', 'gottext-reset-two')).toBe('Older posts')
+	expect(__('Older posts')).toBe('Older posts')
 })
 
-test('resets the default domain and locale without arguments', () => {
-	setLocaleData(CATALOG)
+test('settles back on the locale it is handed', () => {
+	rememberLocale('es-ES')
+
+	resetLocale('fr-FR')
+
+	expect(displayLocale()).toBe('fr-FR')
+})
+
+test('settles back on en-US when handed no locale', () => {
 	rememberLocale('es-ES')
 
 	resetLocale()
 
-	expect(__('Older posts')).toBe('Older posts')
 	expect(displayLocale()).toBe('en-US')
 })
