@@ -38,6 +38,46 @@ export interface Synced {
 	kept: string[]
 }
 
+/** Pushed is what one push did, in words fit for a log. */
+export interface Pushed {
+	pushed: string[]
+	skipped: string[]
+}
+
+/**
+ * Carries every repository catalogue to the platform for the languages it lists.
+ * @param platform - The translation platform to write.
+ * @param supported - The languages the site answers in.
+ * @param held - Where the catalogues live.
+ * @param template - The catalogue template naming every message the site shows.
+ * @returns The languages that were pushed and the ones passed over.
+ */
+export async function pushTranslations(
+	platform: Poeditor,
+	supported: string[],
+	held: Catalogues,
+	template: string,
+): Promise<Pushed> {
+	const pushed: string[] = []
+	const skipped: string[] = []
+	await platform.uploadTerms(template)
+	for (const named of await platform.languages()) {
+		const locale = localeFor(named, supported)
+		if (locale === undefined) {
+			skipped.push(`${named}, which the site does not answer in`)
+			continue
+		}
+		const current = held.read(locale)
+		if (current === undefined) {
+			skipped.push(`${named}, which the repository holds no catalogue for`)
+			continue
+		}
+		await platform.uploadTranslations(named, namedByTemplate(current, template))
+		pushed.push(locale)
+	}
+	return { pushed, skipped }
+}
+
 /**
  * Returns the catalogue a sync writes and how many committed forms it restored.
  * @param current - The catalogue as committed, or nothing when none is committed yet.

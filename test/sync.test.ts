@@ -10,6 +10,7 @@ import {
 	meaningfulChange,
 	namedByTemplate,
 	poeditorAt,
+	pushTranslations,
 	syncTranslations,
 	translated,
 	withPluralRuleOf,
@@ -44,6 +45,35 @@ function platformOf(languages: string[], exports: Record<string, string>): Poedi
 		languages: async () => languages,
 		exportPo: async (named: string) => exports[named] ?? '',
 		uploadTerms: async () => {},
+		uploadTranslations: async () => {},
+	}
+}
+
+/**
+ * Returns a platform recording every catalogue upload it receives.
+ * @param languages - The languages the platform lists.
+ * @returns The platform and the uploads it received, as name and source pairs.
+ */
+function receivingPlatform(languages: string[]): {
+	platform: Poeditor
+	uploads: [string, string][]
+	termsSent: string[]
+} {
+	const uploads: [string, string][] = []
+	const termsSent: string[] = []
+	return {
+		platform: {
+			languages: async () => languages,
+			exportPo: async () => '',
+			uploadTerms: async (source: string) => {
+				termsSent.push(source)
+			},
+			uploadTranslations: async (named: string, source: string) => {
+				uploads.push([named, source])
+			},
+		},
+		uploads,
+		termsSent,
 	}
 }
 
@@ -367,6 +397,7 @@ test('sends the template before asking what the platform holds', async () => {
 		uploadTerms: async () => {
 			order.push('upload')
 		},
+		uploadTranslations: async () => {},
 	}
 	const { held } = storeOf()
 
@@ -529,4 +560,136 @@ test('refuses an export that could not be downloaded', async () => {
 
 	await expect(poeditorAt({ token: 't', project: 'p', domain: 'probe', fetched }).exportPo('es-ES'))
 		.rejects.toThrow(/404/)
+})
+
+test('pushes each held catalogue under the platform its language is named by', async () => {
+	const fuzzy = `${HEADER}\n#, fuzzy\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n`
+	const { platform, uploads, termsSent } = receivingPlatform(['es'])
+	const { held } = storeOf({ 'es-ES': fuzzy })
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(termsSent).toEqual([TEMPLATE])
+	expect(uploads).toHaveLength(1)
+	expect(uploads[0][0]).toBe('es')
+	expect(uploads[0][1]).toContain('msgstr "Entradas anteriores"')
+	expect(uploads[0][1]).toContain('#, fuzzy')
+	expect(done.pushed).toEqual(['es-ES'])
+})
+
+test('pushes only the messages the template names', async () => {
+	const stale = `${HEADER}\nmsgid "Older posts"\nmsgstr "Entradas"\n\nmsgid "Retired"\nmsgstr "Retirada"\n`
+	const { platform, uploads } = receivingPlatform(['es'])
+	const { held } = storeOf({ 'es-ES': stale })
+
+	await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads[0][1]).toContain('msgstr "Entradas"')
+	expect(uploads[0][1]).not.toContain('Retired')
+})
+
+test('passes over a pushed language the site does not answer in', async () => {
+	const { platform, uploads } = receivingPlatform(['de'])
+	const { held } = storeOf({})
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads).toHaveLength(0)
+	expect(done.pushed).toEqual([])
+	expect(done.skipped).toEqual(['de, which the site does not answer in'])
+})
+
+test('passes over a pushed language the repository holds no catalogue for', async () => {
+	const { platform, uploads } = receivingPlatform(['es'])
+	const { held } = storeOf({})
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads).toHaveLength(0)
+	expect(done.skipped).toEqual(['es, which the repository holds no catalogue for'])
+})
+
+test('uploads a language catalogue with its translations and terms together', async () => {
+	const sent: FormData[] = []
+	const fetched = vi.fn(async (_url: string, init?: RequestInit) => {
+		sent.push(init?.body as FormData)
+		return new Response(JSON.stringify({ response: { status: 'success' }, result: {} }))
+	}) as unknown as typeof fetch
+
+	await poeditorAt({ token: 't', project: 'p', domain: 'probe', fetched })
+		.uploadTranslations('fr-CA', catalogue('Anciens billets'))
+
+	expect(sent[0].get('updating')).toBe('terms_translations')
+	expect(sent[0].get('language')).toBe('fr-ca')
+	expect((sent[0].get('file') as File).name).toBe('probe.po')
+	expect(await (sent[0].get('file') as File).text()).toContain('Anciens billets')
+})
+
+test('retries one upload the platform rate limited', async () => {
+	const waits: number[] = []
+	let asked = 0
+	const fetched = vi.fn(async () => {
+		asked += 1
+		return asked === 1
+			? new Response(JSON.stringify({ response: { status: 'fail', code: '4048', message: 'slow down' } }))
+			: new Response(JSON.stringify({ response: { status: 'success' }, result: {} }))
+	}) as unknown as typeof fetch
+	const platform = poeditorAt({
+		token: 't', project: 'p', domain: 'probe', fetched,
+		paced: 123,
+		paused: async (ms: number) => {
+			waits.push(ms)
+		},
+	})
+
+	await platform.uploadTranslations('es', catalogue('Entradas'))
+
+	expect(asked).toBe(2)
+	expect(waits).toEqual([123])
+})
+
+test('surfaces a rate refusal that outlives the retry', async () => {
+	const fetched = vi.fn(async () =>
+		new Response(JSON.stringify({ response: { status: 'fail', code: '4048', message: 'slow down' } })),
+	) as unknown as typeof fetch
+	const platform = poeditorAt({
+		token: 't', project: 'p', domain: 'probe', fetched,
+		paced: 1,
+		paused: async () => {},
+	})
+
+	await expect(platform.uploadTranslations('es', catalogue('Entradas'))).rejects.toThrow(/slow down/)
+	expect(fetched).toHaveBeenCalledTimes(2)
+})
+
+test('spaces consecutive uploads apart', async () => {
+	const waits: number[] = []
+	const fetched = vi.fn(async () =>
+		new Response(JSON.stringify({ response: { status: 'success' }, result: {} })),
+	) as unknown as typeof fetch
+	const platform = poeditorAt({
+		token: 't', project: 'p', domain: 'probe', fetched,
+		paced: 456,
+		paused: async (ms: number) => {
+			waits.push(ms)
+		},
+	})
+
+	await platform.uploadTerms(TEMPLATE)
+	await platform.uploadTranslations('es', catalogue('Entradas'))
+	await platform.uploadTranslations('fr', catalogue('Anciens'))
+
+	expect(waits).toEqual([456, 456])
+})
+
+test('waits between uploads through the runtime clock unless handed a pause', async () => {
+	const fetched = vi.fn(async () =>
+		new Response(JSON.stringify({ response: { status: 'success' }, result: {} })),
+	) as unknown as typeof fetch
+	const platform = poeditorAt({ token: 't', project: 'p', domain: 'probe', fetched, paced: 1 })
+
+	await platform.uploadTranslations('es', catalogue('Entradas'))
+	await platform.uploadTranslations('fr', catalogue('Anciens'))
+
+	expect(fetched).toHaveBeenCalledTimes(2)
 })

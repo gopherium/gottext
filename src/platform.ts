@@ -10,15 +10,19 @@ const API = 'https://api.poeditor.com/v2'
 
 /** Answer is what the platform answers a request with. */
 interface Answer {
-	response: { status: string, message?: string }
+	response: { status: string, code?: string, message?: string }
 	result?: { languages?: { code: string }[], url?: string, terms?: { deleted?: number } }
 }
+
+/** RATE_LIMITED is the refusal code the platform answers hurried uploads with. */
+const RATE_LIMITED = '4048'
 
 /** Poeditor is what a repository reads a translation platform through. */
 export interface Poeditor {
 	languages: () => Promise<string[]>
 	exportPo: (locale: string) => Promise<string>
 	uploadTerms: (source: string) => Promise<void>
+	uploadTranslations: (locale: string, source: string) => Promise<void>
 }
 
 /** Retiring is what a repository retires a platform's absent terms through. */
@@ -36,18 +40,30 @@ export interface PlatformOptions {
 	domain: string
 	/** fetched is how a request is sent, the runtime's own by default. */
 	fetched?: typeof fetch
+	/** paced is how many milliseconds separate uploads and precede a rate retry. */
+	paced?: number
+	/** paused is how a wait is spent, the runtime's own timer by default. */
+	paused?: (ms: number) => Promise<void>
 }
 
 /**
- * Returns the result a platform answer carries, refusing anything that is not a success.
+ * Returns the platform's answer, refusing a response that never arrived whole.
  * @param response - The answer as it arrived.
- * @returns The result the platform answered with.
+ * @returns The answer, parsed.
  */
-async function resultOf(response: Response): Promise<NonNullable<Answer['result']>> {
+async function answerOf(response: Response): Promise<Answer> {
 	if (!response.ok) {
 		throw new Error(`the translation platform answered ${response.status}`)
 	}
-	const answered = (await response.json()) as Answer
+	return (await response.json()) as Answer
+}
+
+/**
+ * Returns the result an answer carries, refusing anything that is not a success.
+ * @param answered - The answer, parsed.
+ * @returns The result the platform answered with.
+ */
+function resultChecked(answered: Answer): NonNullable<Answer['result']> {
 	if (answered.response.status !== 'success') {
 		throw new Error(
 			`the translation platform refused: ${answered.response.message ?? 'no reason given'}`,
@@ -57,12 +73,25 @@ async function resultOf(response: Response): Promise<NonNullable<Answer['result'
 }
 
 /**
+ * Returns the result a platform answer carries, refusing anything that is not a success.
+ * @param response - The answer as it arrived.
+ * @returns The result the platform answered with.
+ */
+async function resultOf(response: Response): Promise<NonNullable<Answer['result']>> {
+	return resultChecked(await answerOf(response))
+}
+
+/**
  * Returns the reader and retirer of one translation platform project.
  * @param options - The credential, the project and the domain to reach it under.
  * @returns The reader, carrying the retirement its own interface names.
  */
 export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 	const fetched = options.fetched ?? fetch
+	const paced = options.paced ?? 20_000
+	const paused = options.paused
+		?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+	let uploaded = false
 	/**
 	 * Returns the values every call carries.
 	 * @returns The credential and the project.
@@ -87,6 +116,43 @@ export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 		}))
 	}
 	/**
+	 * Returns an upload form carrying the credentials and the named file.
+	 * @param updating - What the upload changes on the platform.
+	 * @param filename - The name the file travels under.
+	 * @param source - The file's text.
+	 * @returns The form, ready for the extras one upload adds.
+	 */
+	function formFor(updating: string, filename: string, source: string): FormData {
+		const form = new FormData()
+		form.set('api_token', options.token)
+		form.set('id', options.project)
+		form.set('updating', updating)
+		form.set('file', new Blob([source]), filename)
+		return form
+	}
+	/**
+	 * Sends one upload form, pacing it behind the last and retrying one rate refusal.
+	 * @param form - The upload to send.
+	 * @returns The result the platform answered with.
+	 */
+	async function uploadForm(form: FormData): Promise<NonNullable<Answer['result']>> {
+		if (uploaded) {
+			await paused(paced)
+		}
+		uploaded = true
+		const send = () => fetched(`${API}/projects/upload`, {
+			method: 'POST',
+			body: form,
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+		})
+		const first = await answerOf(await send())
+		if (first.response.code !== RATE_LIMITED) {
+			return resultChecked(first)
+		}
+		await paused(paced)
+		return resultOf(await send())
+	}
+	/**
 	 * Sends the template to the platform, saying whether absent terms retire.
 	 * @param source - The catalogue template as POT text.
 	 * @param retiring - Whether terms the template does not name are deleted.
@@ -96,19 +162,11 @@ export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 		source: string,
 		retiring: boolean,
 	): Promise<NonNullable<Answer['result']>> {
-		const form = new FormData()
-		form.set('api_token', options.token)
-		form.set('id', options.project)
-		form.set('updating', 'terms')
+		const form = formFor('terms', `${options.domain}.pot`, source)
 		if (retiring) {
 			form.set('sync_terms', '1')
 		}
-		form.set('file', new Blob([source]), `${options.domain}.pot`)
-		return resultOf(await fetched(`${API}/projects/upload`, {
-			method: 'POST',
-			body: form,
-			signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-		}))
+		return uploadForm(form)
 	}
 	return {
 		/**
@@ -125,6 +183,16 @@ export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 		 */
 		uploadTerms: async (source: string) => {
 			await sendTemplate(source, false)
+		},
+		/**
+		 * Sends one language's terms and translations together, fuzzy flags preserved.
+		 * @param locale - The language, named as the platform names it.
+		 * @param source - The catalogue as PO text.
+		 */
+		uploadTranslations: async (locale: string, source: string) => {
+			const form = formFor('terms_translations', `${options.domain}.po`, source)
+			form.set('language', locale.toLowerCase())
+			await uploadForm(form)
 		},
 		/**
 		 * Deletes from the platform every term the template does not name.
