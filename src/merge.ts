@@ -19,6 +19,19 @@ export function localeOf(code: string): string {
 }
 
 /**
+ * Returns the code the platform names a language by, bare when its region repeats it.
+ * @param locale - The language as a catalogue file names it.
+ * @returns The code as the platform writes it.
+ */
+export function platformCodeOf(locale: string): string {
+	const [language, region] = locale.split('-')
+	if (region === undefined || region.toLowerCase() === language) {
+		return language
+	}
+	return `${language}-${region.toLowerCase()}`
+}
+
+/**
  * Returns the language the site knows a platform code as, if it knows one.
  * @param code - The language as the platform names it.
  * @param supported - The languages the site answers in.

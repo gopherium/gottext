@@ -46,21 +46,24 @@ function platformOf(languages: string[], exports: Record<string, string>): Poedi
 		exportPo: async (named: string) => exports[named] ?? '',
 		uploadTerms: async () => {},
 		uploadTranslations: async () => {},
+		addLanguage: async () => {},
 	}
 }
 
 /**
- * Returns a platform recording every catalogue upload it receives.
+ * Returns a platform recording every catalogue upload and language it receives.
  * @param languages - The languages the platform lists.
- * @returns The platform and the uploads it received, as name and source pairs.
+ * @returns The platform, the uploads as name and source pairs, and what else arrived.
  */
 function receivingPlatform(languages: string[]): {
 	platform: Poeditor
 	uploads: [string, string][]
 	termsSent: string[]
+	languagesAdded: string[]
 } {
 	const uploads: [string, string][] = []
 	const termsSent: string[] = []
+	const languagesAdded: string[] = []
 	return {
 		platform: {
 			languages: async () => languages,
@@ -71,9 +74,13 @@ function receivingPlatform(languages: string[]): {
 			uploadTranslations: async (named: string, source: string) => {
 				uploads.push([named, source])
 			},
+			addLanguage: async (named: string) => {
+				languagesAdded.push(named)
+			},
 		},
 		uploads,
 		termsSent,
+		languagesAdded,
 	}
 }
 
@@ -398,6 +405,7 @@ test('sends the template before asking what the platform holds', async () => {
 			order.push('upload')
 		},
 		uploadTranslations: async () => {},
+		addLanguage: async () => {},
 	}
 	const { held } = storeOf()
 
@@ -653,6 +661,67 @@ test('passes over a pushed language the repository holds no catalogue for', asyn
 
 	expect(uploads).toHaveLength(0)
 	expect(done.skipped).toEqual(['es, which the repository holds no catalogue for'])
+})
+
+test('adds a language the platform lacks and pushes its full catalogue', async () => {
+	const { platform, uploads, languagesAdded } = receivingPlatform([])
+	const { held } = storeOf({ 'es-ES': fuzzyCatalogue('Entradas anteriores') })
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(languagesAdded).toEqual(['es'])
+	expect(uploads).toHaveLength(1)
+	expect(uploads[0][0]).toBe('es')
+	expect(uploads[0][1]).toContain('#, fuzzy')
+	expect(done.added).toEqual(['es-ES'])
+	expect(done.pushed).toEqual(['es-ES'])
+})
+
+test('adds a dialect under its full code', async () => {
+	const { platform, uploads, languagesAdded } = receivingPlatform([])
+	const { held } = storeOf({ 'pt-BR': `${HEADER}\nmsgid "Older posts"\nmsgstr "Posts antigos"\n` })
+
+	await pushTranslations(platform, ['pt-BR'], held, TEMPLATE)
+
+	expect(languagesAdded).toEqual(['pt-br'])
+	expect(uploads[0][0]).toBe('pt-br')
+})
+
+test('adds nothing for a language the platform already lists', async () => {
+	const { platform, uploads, languagesAdded } = receivingPlatform(['es'])
+	const { held } = storeOf({ 'es-ES': catalogue('Entradas') })
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(languagesAdded).toEqual([])
+	expect(uploads).toHaveLength(1)
+	expect(done.added).toEqual([])
+})
+
+test('adds nothing for a supported language the repository holds no catalogue for', async () => {
+	const { platform, uploads, languagesAdded } = receivingPlatform([])
+	const { held } = storeOf({})
+
+	const done = await pushTranslations(platform, ['fr-FR'], held, TEMPLATE)
+
+	expect(languagesAdded).toEqual([])
+	expect(uploads).toHaveLength(0)
+	expect(done.added).toEqual([])
+	expect(done.pushed).toEqual([])
+})
+
+test('tells the platform a new language exists', async () => {
+	const sent: URLSearchParams[] = []
+	const fetched = vi.fn(async (url: string, init?: RequestInit) => {
+		sent.push(init?.body as URLSearchParams)
+		expect(url).toContain('languages/add')
+		return new Response(JSON.stringify({ response: { status: 'success' }, result: {} }))
+	}) as unknown as typeof fetch
+
+	await poeditorAt({ token: 't', project: 'p', domain: 'probe', fetched }).addLanguage('pt-BR')
+
+	expect(sent[0].get('language')).toBe('pt-br')
+	expect(sent[0].get('api_token')).toBe('t')
 })
 
 test('uploads a language catalogue with its translations and terms together', async () => {

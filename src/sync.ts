@@ -6,6 +6,7 @@ import {
 	localeFor,
 	meaningfulChange,
 	namedByTemplate,
+	platformCodeOf,
 	translated,
 	withPluralRuleOf,
 } from './merge.js'
@@ -42,6 +43,35 @@ export interface Synced {
 export interface Pushed {
 	pushed: string[]
 	skipped: string[]
+	added: string[]
+}
+
+/**
+ * Carries every supported catalogue the platform does not list yet, adding its language first.
+ * @param platform - The translation platform to write.
+ * @param absent - The supported languages the platform does not list, holding a catalogue.
+ * @param held - Where the catalogues live.
+ * @param template - The catalogue template naming every message the site shows.
+ * @returns The languages that were added and pushed.
+ */
+async function pushingAbsent(
+	platform: Poeditor,
+	absent: string[],
+	held: Catalogues,
+	template: string,
+): Promise<string[]> {
+	const added: string[] = []
+	for (const locale of absent) {
+		const current = held.read(locale)
+		if (current === undefined) {
+			continue
+		}
+		const named = platformCodeOf(locale)
+		await platform.addLanguage(named)
+		await platform.uploadTranslations(named, namedByTemplate(current, template))
+		added.push(locale)
+	}
+	return added
 }
 
 /**
@@ -60,6 +90,7 @@ export async function pushTranslations(
 ): Promise<Pushed> {
 	const pushed: string[] = []
 	const skipped: string[] = []
+	const listed: string[] = []
 	await platform.uploadTerms(template)
 	for (const named of await platform.languages()) {
 		const locale = localeFor(named, supported)
@@ -67,6 +98,7 @@ export async function pushTranslations(
 			skipped.push(`${named}, which the site does not answer in`)
 			continue
 		}
+		listed.push(locale)
 		const current = held.read(locale)
 		if (current === undefined) {
 			skipped.push(`${named}, which the repository holds no catalogue for`)
@@ -75,7 +107,9 @@ export async function pushTranslations(
 		await platform.uploadTranslations(named, namedByTemplate(current, template))
 		pushed.push(locale)
 	}
-	return { pushed, skipped }
+	const absent = supported.filter((locale) => !listed.includes(locale))
+	const added = await pushingAbsent(platform, absent, held, template)
+	return { pushed: [...pushed, ...added], skipped, added }
 }
 
 /**

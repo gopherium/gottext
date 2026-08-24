@@ -23,6 +23,7 @@ export interface Poeditor {
 	exportPo: (locale: string) => Promise<string>
 	uploadTerms: (source: string) => Promise<void>
 	uploadTranslations: (locale: string, source: string) => Promise<void>
+	addLanguage: (locale: string) => Promise<void>
 }
 
 /** Retiring is what a repository retires a platform's absent terms through. */
@@ -183,6 +184,15 @@ export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 		 */
 		uploadTerms: async (source: string) => {
 			await sendTemplate(source, false)
+		},
+		/**
+		 * Tells the platform a language exists, so a catalogue can follow.
+		 * @param locale - The language to add.
+		 */
+		addLanguage: async (locale: string) => {
+			const form = credentials()
+			form.set('language', locale.toLowerCase())
+			await ask('languages/add', form)
 		},
 		/**
 		 * Sends one language's terms and translations together, fuzzy flags preserved.
