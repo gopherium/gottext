@@ -117,22 +117,62 @@ export function namedByTemplate(incoming: string, template: string): string {
 }
 
 /**
- * Returns the forms a catalogue keeps, taking each answered form over an empty one.
- * @param ours - The forms as committed.
- * @param theirs - The forms the platform exported.
- * @returns The forms, answered wherever either side answers them.
+ * Reports whether an entry carries the fuzzy flag.
+ * @param entry - The entry as parsed.
+ * @returns Whether the entry is fuzzy.
  */
-function mergedForms(ours: string[], theirs: string[]): string[] {
-	const held: string[] = []
-	for (let at = 0; at < Math.max(ours.length, theirs.length); at += 1) {
-		const arrived = theirs[at] ?? ''
-		held.push(arrived === '' ? (ours[at] ?? '') : arrived)
-	}
-	return held
+function fuzzyOf(entry: GetTextTranslation): boolean {
+	return /(^|,)\s*fuzzy\s*(,|$)/.test(entry.comments?.flag ?? '')
 }
 
 /**
- * Writes one committed answer into a catalogue that arrived without every form of it.
+ * Writes whether an entry is fuzzy, leaving its other flags standing.
+ * @param entry - The entry to mark.
+ * @param fuzzy - Whether the entry is fuzzy.
+ */
+function flaggedFuzzy(entry: GetTextTranslation, fuzzy: boolean): void {
+	const others = (entry.comments?.flag ?? '')
+		.split(',')
+		.map((flag) => flag.trim())
+		.filter((flag) => flag !== '' && flag !== 'fuzzy')
+	const flags = fuzzy ? [...others, 'fuzzy'] : others
+	if (flags.length > 0) {
+		entry.comments = { ...entry.comments, flag: flags.join(', ') }
+		return
+	}
+	if (entry.comments !== undefined) {
+		delete entry.comments.flag
+	}
+}
+
+/**
+ * Returns the forms a merge keeps and which sides answered them.
+ * @param preferred - The forms that win wherever they are answered.
+ * @param fallback - The forms filling what the preferred side holds empty.
+ * @returns The forms and whether each side supplied any of them.
+ */
+function mergedForms(
+	preferred: string[],
+	fallback: string[],
+): { forms: string[], tookPreferred: boolean, tookFallback: boolean } {
+	const forms: string[] = []
+	let tookPreferred = false
+	let tookFallback = false
+	for (let at = 0; at < Math.max(preferred.length, fallback.length); at += 1) {
+		const wanted = preferred[at] ?? ''
+		if (wanted !== '') {
+			forms.push(wanted)
+			tookPreferred = true
+			continue
+		}
+		forms.push(fallback[at] ?? '')
+		tookFallback = tookFallback || (fallback[at] ?? '') !== ''
+	}
+	return { forms, tookPreferred, tookFallback }
+}
+
+/**
+ * Writes one committed answer into a catalogue that arrived without every settled form of it.
  * @param held - The catalogue the platform exported, as parsed.
  * @param context - The context the answer sits under.
  * @param msgid - The message the answer belongs to.
@@ -151,7 +191,33 @@ function restoring(
 		return
 	}
 	arrived.msgid_plural ??= entry.msgid_plural
-	arrived.msgstr = mergedForms(entry.msgstr, arrived.msgstr)
+	const settled = settledForms(entry, arrived)
+	arrived.msgstr = settled.forms
+	flaggedFuzzy(arrived, settled.fuzzy)
+}
+
+/**
+ * Returns the merged forms of one answered message and whether they stay fuzzy.
+ * @param entry - The committed answer.
+ * @param arrived - The answer the platform exported.
+ * @returns The forms to keep and the fuzzy state they carry.
+ */
+function settledForms(
+	entry: GetTextTranslation,
+	arrived: GetTextTranslation,
+): { forms: string[], fuzzy: boolean } {
+	const ourFuzzy = fuzzyOf(entry)
+	const theirFuzzy = fuzzyOf(arrived)
+	const oursFirst = theirFuzzy && !ourFuzzy
+	const preferred = oursFirst ? entry.msgstr : arrived.msgstr
+	const fallback = oursFirst ? arrived.msgstr : entry.msgstr
+	const merged = mergedForms(preferred, fallback)
+	const preferredFuzzy = oursFirst ? ourFuzzy : theirFuzzy
+	const fallbackFuzzy = oursFirst ? theirFuzzy : ourFuzzy
+	return {
+		forms: merged.forms,
+		fuzzy: (merged.tookPreferred && preferredFuzzy) || (merged.tookFallback && fallbackFuzzy),
+	}
 }
 
 /**
@@ -177,12 +243,12 @@ export function keepingAnswers(current: string, incoming: string, template: stri
 }
 
 /** Answers is what one language's export carries, keyed by context and message. */
-type Answers = Record<string, Record<string, string[]>>
+type Answers = Record<string, Record<string, { msgstr: string[], fuzzy: boolean }>>
 
 /**
  * Returns the translations a catalogue holds, without the headers an export restamps.
  * @param source - The catalogue as PO text.
- * @returns The translations, keyed by context and message.
+ * @returns The translations with their fuzzy state, keyed by context and message.
  */
 function answersOf(source: string): Answers {
 	const held: Answers = {}
@@ -190,7 +256,7 @@ function answersOf(source: string): Answers {
 		held[context] = {}
 		for (const [msgid, entry] of Object.entries(entries).sort()) {
 			if (msgid !== METADATA) {
-				held[context][msgid] = entry.msgstr
+				held[context][msgid] = { msgstr: entry.msgstr, fuzzy: fuzzyOf(entry) }
 			}
 		}
 	}

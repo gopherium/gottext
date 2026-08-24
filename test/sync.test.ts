@@ -562,6 +562,52 @@ test('refuses an export that could not be downloaded', async () => {
 		.rejects.toThrow(/404/)
 })
 
+/**
+ * Returns a catalogue carrying one fuzzy translation.
+ * @param msgstr - The machine answer the catalogue holds.
+ * @returns The catalogue as PO text.
+ */
+function fuzzyCatalogue(msgstr: string): string {
+	return `${HEADER}\n#, fuzzy\nmsgid "Older posts"\nmsgstr "${msgstr}"\n`
+}
+
+test('a reviewed answer replaces the fuzzy one it settles', () => {
+	const held = keepingAnswers(fuzzyCatalogue('Entradas anteriores'), catalogue('Entradas previas'), TEMPLATE)
+
+	expect(held).toContain('msgstr "Entradas previas"')
+	expect(held).not.toContain('#, fuzzy')
+})
+
+test('a fuzzy export never replaces a settled answer', () => {
+	const held = keepingAnswers(catalogue('Entradas'), fuzzyCatalogue('Entradas raras'), TEMPLATE)
+
+	expect(held).toContain('msgstr "Entradas"')
+	expect(held).not.toContain('Entradas raras')
+	expect(held).not.toContain('#, fuzzy')
+})
+
+test('a restored answer keeps its fuzzy flag', () => {
+	const held = keepingAnswers(fuzzyCatalogue('Entradas anteriores'), catalogue(''), TEMPLATE)
+
+	expect(held).toContain('msgstr "Entradas anteriores"')
+	expect(held).toContain('#, fuzzy')
+})
+
+test('two fuzzy answers take the platform text and stay fuzzy', () => {
+	const held = keepingAnswers(
+		fuzzyCatalogue('Entradas anteriores'),
+		fuzzyCatalogue('Entradas previas'),
+		TEMPLATE,
+	)
+
+	expect(held).toContain('msgstr "Entradas previas"')
+	expect(held).toContain('#, fuzzy')
+})
+
+test('clearing a fuzzy flag alone is a meaningful change', () => {
+	expect(meaningfulChange(fuzzyCatalogue('Entradas'), catalogue('Entradas'))).toBe(true)
+})
+
 test('pushes each held catalogue under the platform its language is named by', async () => {
 	const fuzzy = `${HEADER}\n#, fuzzy\nmsgid "Older posts"\nmsgstr "Entradas anteriores"\n`
 	const { platform, uploads, termsSent } = receivingPlatform(['es'])
