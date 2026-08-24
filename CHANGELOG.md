@@ -4,6 +4,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/). While at 0.x,
 minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
+## [Unreleased]
+
+### Added
+
+- `pushTranslations`, which carries every held catalogue to the platform with
+  its fuzzy flags, trimmed to the template so a stale file revives nothing.
+- `addLanguage` on the platform seam, and the push adds and fills a supported
+  language the platform does not list yet.
+- Upload pacing, one paced retry when the platform answers its rate refusal.
+- A fuzzy aware merge, where a reviewed answer settles a fuzzy one and a fuzzy
+  export never replaces a settled answer, restored answers keeping their flag.
+- `unreviewed`, which names the answers still carrying the fuzzy flag.
+
+### Changed
+
+- Clearing a fuzzy flag alone now counts as a meaningful change, so a pull
+  writes an approval home even when the text did not move.
+
 ## [0.2.0] - 2026-08-24
 
 ### Added
