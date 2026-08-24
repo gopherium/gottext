@@ -134,7 +134,7 @@ export function namedByTemplate(incoming: string, template: string): string {
  * @param entry - The entry as parsed.
  * @returns Whether the entry is fuzzy.
  */
-function fuzzyOf(entry: GetTextTranslation): boolean {
+export function fuzzyOf(entry: GetTextTranslation): boolean {
 	return /(^|,)\s*fuzzy\s*(,|$)/.test(entry.comments?.flag ?? '')
 }
 

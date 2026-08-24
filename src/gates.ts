@@ -3,6 +3,7 @@
 import { po } from 'gettext-parser'
 
 import { METADATA, held, keyOf } from './catalog.js'
+import { fuzzyOf } from './merge.js'
 
 /**
  * Returns every key a catalogue carries a filled translation for.
@@ -57,6 +58,23 @@ export function orphaned(source: string, template: string): string[] {
 		}
 	}
 	return carried
+}
+
+/**
+ * Returns every message whose answer still carries the fuzzy flag.
+ * @param source - The catalogue as PO text.
+ * @returns The keys answered but not yet reviewed.
+ */
+export function unreviewed(source: string): string[] {
+	const waiting: string[] = []
+	for (const [context, entries] of Object.entries(po.parse(source).translations)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
+			if (msgid !== METADATA && fuzzyOf(entry) && entry.msgstr.some((form) => form !== '')) {
+				waiting.push(keyOf(context, msgid))
+			}
+		}
+	}
+	return waiting
 }
 
 /** NAMED is a placeholder naming what goes into it. */
