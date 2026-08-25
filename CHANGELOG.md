@@ -8,8 +8,10 @@ minor releases may break. Releases are tagged `vX.Y.Z` and publish from CI.
 
 ### Added
 
-- `pushTranslations`, which carries every held catalogue to the platform with
-  its fuzzy flags, trimmed to the template so a stale file revives nothing.
+- `pushTranslations`, which carries every held catalogue of a supported language
+  to the platform with its fuzzy flags, trimmed to the template so a stale file
+  revives nothing, and holding back every answer the platform has settled so a
+  push never overwrites a reviewer.
 - `addLanguage` on the platform seam, and the push adds and fills a supported
   language the platform does not list yet.
 - Upload pacing, one paced retry when the platform answers its rate refusal.
