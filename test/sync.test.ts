@@ -663,6 +663,71 @@ test('passes over a pushed language the repository holds no catalogue for', asyn
 	expect(done.skipped).toEqual(['es, which the repository holds no catalogue for'])
 })
 
+/**
+ * Returns a platform recording uploads and exporting the given catalogue per language.
+ * @param languages - The languages the platform lists.
+ * @param exports - The catalogue each language exports, keyed by platform name.
+ * @returns The platform and the uploads it received.
+ */
+function exportingPlatform(languages: string[], exports: Record<string, string>): {
+	platform: Poeditor
+	uploads: [string, string][]
+} {
+	const uploads: [string, string][] = []
+	return {
+		platform: {
+			languages: async () => languages,
+			exportPo: async (named: string) => exports[named] ?? '',
+			uploadTerms: async () => {},
+			uploadTranslations: async (named: string, source: string) => {
+				uploads.push([named, source])
+			},
+			addLanguage: async () => {},
+		},
+		uploads,
+	}
+}
+
+test('never pushes over an answer the platform has settled', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], { es: catalogue('Entradas revisadas') })
+	const { held } = storeOf({ 'es-ES': fuzzyCatalogue('Entradas de la maquina') })
+
+	const done = await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads).toHaveLength(0)
+	expect(done.pushed).toEqual([])
+	expect(done.skipped).toEqual(['es, which the platform has settled every answer of'])
+})
+
+test('pushes over an answer the platform still holds fuzzy', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], { es: fuzzyCatalogue('Entradas viejas') })
+	const { held } = storeOf({ 'es-ES': fuzzyCatalogue('Entradas nuevas') })
+
+	await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads).toHaveLength(1)
+	expect(uploads[0][1]).toContain('Entradas nuevas')
+})
+
+test('pushes a settled answer of its own over a fuzzy one the platform holds', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], { es: fuzzyCatalogue('Entradas raras') })
+	const { held } = storeOf({ 'es-ES': catalogue('Entradas corregidas') })
+
+	await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads[0][1]).toContain('Entradas corregidas')
+	expect(uploads[0][1]).not.toContain('#, fuzzy')
+})
+
+test('pushes a message the platform holds no answer for', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], { es: catalogue('') })
+	const { held } = storeOf({ 'es-ES': fuzzyCatalogue('Entradas anteriores') })
+
+	await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
+
+	expect(uploads[0][1]).toContain('Entradas anteriores')
+})
+
 test('adds a language the platform lacks and pushes its full catalogue', async () => {
 	const { platform, uploads, languagesAdded } = receivingPlatform([])
 	const { held } = storeOf({ 'es-ES': fuzzyCatalogue('Entradas anteriores') })
@@ -735,6 +800,7 @@ test('uploads a language catalogue with its translations and terms together', as
 		.uploadTranslations('fr-CA', catalogue('Anciens billets'))
 
 	expect(sent[0].get('updating')).toBe('terms_translations')
+	expect(sent[0].get('overwrite')).toBe('1')
 	expect(sent[0].get('language')).toBe('fr-ca')
 	expect((sent[0].get('file') as File).name).toBe('probe.po')
 	expect(await (sent[0].get('file') as File).text()).toContain('Anciens billets')

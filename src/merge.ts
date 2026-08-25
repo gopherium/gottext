@@ -255,6 +255,29 @@ export function keepingAnswers(current: string, incoming: string, template: stri
 	return po.compile(held, COMPILED).toString()
 }
 
+/**
+ * Returns a catalogue without the messages an export already answers and nobody may overwrite.
+ * @param source - The catalogue as committed.
+ * @param exported - The catalogue the platform exported.
+ * @returns The catalogue, holding only what the platform has not settled.
+ */
+export function withoutSettled(source: string, exported: string): string {
+	const theirs = po.parse(exported).translations
+	const held = po.parse(source)
+	for (const [context, entries] of Object.entries(held.translations)) {
+		for (const msgid of Object.keys(entries)) {
+			const arrived = ownEntry(theirs[context], msgid)
+			const settled = arrived !== undefined
+				&& !fuzzyOf(arrived)
+				&& arrived.msgstr.some((form) => form !== '')
+			if (msgid !== METADATA && settled) {
+				delete held.translations[context][msgid]
+			}
+		}
+	}
+	return po.compile(held, COMPILED).toString()
+}
+
 /** Answers is what one language's export carries, keyed by context and message. */
 type Answers = Record<string, Record<string, { msgstr: string[], fuzzy: boolean }>>
 

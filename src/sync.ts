@@ -9,6 +9,7 @@ import {
 	platformCodeOf,
 	translated,
 	withPluralRuleOf,
+	withoutSettled,
 } from './merge.js'
 import type { Poeditor } from './platform.js'
 
@@ -44,6 +45,35 @@ export interface Pushed {
 	pushed: string[]
 	skipped: string[]
 	added: string[]
+}
+
+/** Matched is one language the platform lists that the site answers in. */
+interface Matched {
+	named: string
+	locale: string
+}
+
+/**
+ * Returns the platform's languages the site answers in, and the words for those it does not.
+ * @param platform - The translation platform to read.
+ * @param supported - The languages the site answers in.
+ * @returns The matched languages and the skip lines for the rest.
+ */
+async function matchedLanguages(
+	platform: Poeditor,
+	supported: string[],
+): Promise<{ matched: Matched[], skipped: string[] }> {
+	const matched: Matched[] = []
+	const skipped: string[] = []
+	for (const named of await platform.languages()) {
+		const locale = localeFor(named, supported)
+		if (locale === undefined) {
+			skipped.push(`${named}, which the site does not answer in`)
+			continue
+		}
+		matched.push({ named, locale })
+	}
+	return { matched, skipped }
 }
 
 /**
@@ -89,24 +119,26 @@ export async function pushTranslations(
 	template: string,
 ): Promise<Pushed> {
 	const pushed: string[] = []
-	const skipped: string[] = []
-	const listed: string[] = []
 	await platform.uploadTerms(template)
-	for (const named of await platform.languages()) {
-		const locale = localeFor(named, supported)
-		if (locale === undefined) {
-			skipped.push(`${named}, which the site does not answer in`)
-			continue
-		}
-		listed.push(locale)
+	const { matched, skipped } = await matchedLanguages(platform, supported)
+	for (const { named, locale } of matched) {
 		const current = held.read(locale)
 		if (current === undefined) {
 			skipped.push(`${named}, which the repository holds no catalogue for`)
 			continue
 		}
-		await platform.uploadTranslations(named, namedByTemplate(current, template))
+		const unsettled = withoutSettled(
+			namedByTemplate(current, template),
+			await platform.exportPo(named),
+		)
+		if (translated(unsettled) === 0) {
+			skipped.push(`${named}, which the platform has settled every answer of`)
+			continue
+		}
+		await platform.uploadTranslations(named, unsettled)
 		pushed.push(locale)
 	}
+	const listed = matched.map((held) => held.locale)
 	const absent = supported.filter((locale) => !listed.includes(locale))
 	const added = await pushingAbsent(platform, absent, held, template)
 	return { pushed: [...pushed, ...added], skipped, added }
@@ -147,15 +179,10 @@ export async function syncTranslations(
 	template: string,
 ): Promise<Synced> {
 	const moved: string[] = []
-	const skipped: string[] = []
 	const kept: string[] = []
 	await platform.uploadTerms(template)
-	for (const named of await platform.languages()) {
-		const locale = localeFor(named, supported)
-		if (locale === undefined) {
-			skipped.push(`${named}, which the site does not answer in`)
-			continue
-		}
+	const { matched, skipped } = await matchedLanguages(platform, supported)
+	for (const { named, locale } of matched) {
 		const exported = namedByTemplate(await platform.exportPo(named), template)
 		if (translated(exported) === 0) {
 			skipped.push(`${named}, which nobody has translated yet`)

@@ -201,6 +201,7 @@ export function poeditorAt(options: PlatformOptions): Poeditor & Retiring {
 		 */
 		uploadTranslations: async (locale: string, source: string) => {
 			const form = formFor('terms_translations', `${options.domain}.po`, source)
+			form.set('overwrite', '1')
 			form.set('language', locale.toLowerCase())
 			await uploadForm(form)
 		},
