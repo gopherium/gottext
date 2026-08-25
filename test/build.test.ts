@@ -13,6 +13,7 @@ import {
 	orphaned,
 	pot,
 	serializeCatalog,
+	unreviewed,
 	untranslated,
 } from '../src/build.js'
 
@@ -353,4 +354,50 @@ test('passes over the metadata entry rather than reading it as a message', () =>
 	const naming = 'msgid ""\nmsgstr ""\n\nmsgid "Older posts"\nmsgstr ""\n'
 
 	expect(mismatched(CATALOGUE, naming)).toEqual([])
+})
+
+/** REVIEWING is a catalogue holding one settled answer and two fuzzy ones. */
+const REVIEWING = `msgid ""
+msgstr ""
+
+msgid "Older posts"
+msgstr "Entradas anteriores"
+
+#, fuzzy
+msgid "Newer posts"
+msgstr "Entradas nuevas"
+
+#, fuzzy
+msgctxt "status"
+msgid "Draft"
+msgstr "Borrador"
+`
+
+test('keeps a fuzzy answer in the compiled catalogue', () => {
+	const held = compileCatalog(REVIEWING)
+
+	expect(held['Newer posts']).toEqual(['Entradas nuevas'])
+})
+
+test('counts a fuzzy answer as answered rather than waiting', () => {
+	const naming = 'msgid "Newer posts"\nmsgstr ""\n'
+
+	expect(untranslated(REVIEWING, naming)).toEqual([])
+})
+
+test('names every answer still waiting for review', () => {
+	expect(unreviewed(REVIEWING)).toEqual(['Newer posts', 'statusDraft'])
+})
+
+test('does not read an empty fuzzy entry as waiting for review', () => {
+	const empty = 'msgid "Older posts"\nmsgstr ""\n\n#, fuzzy\nmsgid "Newer posts"\nmsgstr ""\n'
+
+	expect(unreviewed(empty)).toEqual([])
+})
+
+test('sees a fuzzy answer through the mismatched gate', () => {
+	const naming = 'msgid "%(count)d post"\nmsgstr ""\n'
+	const fuzzyBroken = '#, fuzzy\nmsgid "%(count)d post"\nmsgstr "%(total)d entrada"\n'
+
+	expect(mismatched(fuzzyBroken, naming)).toEqual(['%(count)d post'])
 })
