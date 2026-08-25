@@ -82,6 +82,7 @@ async function matchedLanguages(
  * @param absent - The supported languages the platform does not list, holding a catalogue.
  * @param held - Where the catalogues live.
  * @param template - The catalogue template naming every message the site shows.
+ * @param skipped - Where the languages passed over are recorded.
  * @returns The languages that were added and pushed.
  */
 async function pushingAbsent(
@@ -89,11 +90,13 @@ async function pushingAbsent(
 	absent: string[],
 	held: Catalogues,
 	template: string,
+	skipped: string[],
 ): Promise<string[]> {
 	const added: string[] = []
 	for (const locale of absent) {
 		const current = held.read(locale)
 		if (current === undefined) {
+			skipped.push(`${locale}, which the repository holds no catalogue for`)
 			continue
 		}
 		const named = platformCodeOf(locale)
@@ -140,7 +143,7 @@ export async function pushTranslations(
 	}
 	const listed = matched.map((held) => held.locale)
 	const absent = supported.filter((locale) => !listed.includes(locale))
-	const added = await pushingAbsent(platform, absent, held, template)
+	const added = await pushingAbsent(platform, absent, held, template, skipped)
 	return { pushed: [...pushed, ...added], skipped, added }
 }
 

@@ -265,14 +265,16 @@ export function withoutSettled(source: string, exported: string): string {
 	const theirs = po.parse(exported).translations
 	const held = po.parse(source)
 	for (const [context, entries] of Object.entries(held.translations)) {
-		for (const msgid of Object.keys(entries)) {
+		for (const [msgid, entry] of Object.entries(entries)) {
 			const arrived = ownEntry(theirs[context], msgid)
-			const settled = arrived !== undefined
-				&& !fuzzyOf(arrived)
-				&& arrived.msgstr.some((form) => form !== '')
-			if (msgid !== METADATA && settled) {
-				delete held.translations[context][msgid]
+			if (msgid === METADATA || arrived === undefined || fuzzyOf(arrived)) {
+				continue
 			}
+			if (arrived.msgstr.length > 0 && arrived.msgstr.every((form) => form !== '')) {
+				delete held.translations[context][msgid]
+				continue
+			}
+			entry.msgstr = entry.msgstr.map((form, at) => arrived.msgstr[at] || form)
 		}
 	}
 	return po.compile(held, COMPILED).toString()

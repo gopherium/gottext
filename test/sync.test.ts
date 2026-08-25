@@ -650,7 +650,10 @@ test('passes over a pushed language the site does not answer in', async () => {
 
 	expect(uploads).toHaveLength(0)
 	expect(done.pushed).toEqual([])
-	expect(done.skipped).toEqual(['de, which the site does not answer in'])
+	expect(done.skipped).toEqual([
+		'de, which the site does not answer in',
+		'es-ES, which the repository holds no catalogue for',
+	])
 })
 
 test('passes over a pushed language the repository holds no catalogue for', async () => {
@@ -726,6 +729,69 @@ test('pushes a message the platform holds no answer for', async () => {
 	await pushTranslations(platform, ['es-ES'], held, TEMPLATE)
 
 	expect(uploads[0][1]).toContain('Entradas anteriores')
+})
+
+/** PLURAL_TEMPLATE names one message carrying two forms. */
+const PLURAL_TEMPLATE = `msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] ""
+msgstr[1] ""
+`
+
+/**
+ * Returns a catalogue answering the plural message with the given forms.
+ * @param one - The singular form.
+ * @param many - The plural form.
+ * @param fuzzy - Whether the entry needs review.
+ * @returns The catalogue as PO text.
+ */
+function pluralCatalogue(one: string, many: string, fuzzy = false): string {
+	return `${HEADER}
+${fuzzy ? '#, fuzzy\n' : ''}msgid "%(count)d post"
+msgid_plural "%(count)d posts"
+msgstr[0] "${one}"
+msgstr[1] "${many}"
+`
+}
+
+test('pushes the form the platform left empty and keeps the one it answered', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], {
+		es: pluralCatalogue('%(count)d entrada revisada', ''),
+	})
+	const { held } = storeOf({
+		'es-ES': pluralCatalogue('%(count)d entrada maquina', '%(count)d entradas maquina', true),
+	})
+
+	await pushTranslations(platform, ['es-ES'], held, PLURAL_TEMPLATE)
+
+	expect(uploads).toHaveLength(1)
+	expect(uploads[0][1]).toContain('%(count)d entrada revisada')
+	expect(uploads[0][1]).toContain('%(count)d entradas maquina')
+	expect(uploads[0][1]).not.toContain('entrada maquina')
+})
+
+test('never pushes over a plural the platform answered in every form', async () => {
+	const { platform, uploads } = exportingPlatform(['es'], {
+		es: pluralCatalogue('%(count)d entrada', '%(count)d entradas'),
+	})
+	const { held } = storeOf({
+		'es-ES': pluralCatalogue('%(count)d vieja', '%(count)d viejas', true),
+	})
+
+	const done = await pushTranslations(platform, ['es-ES'], held, PLURAL_TEMPLATE)
+
+	expect(uploads).toHaveLength(0)
+	expect(done.skipped).toEqual(['es, which the platform has settled every answer of'])
+})
+
+test('says which supported language it holds no catalogue to add', async () => {
+	const { platform, languagesAdded } = receivingPlatform([])
+	const { held } = storeOf({})
+
+	const done = await pushTranslations(platform, ['fr-FR'], held, TEMPLATE)
+
+	expect(languagesAdded).toEqual([])
+	expect(done.skipped).toEqual(['fr-FR, which the repository holds no catalogue for'])
 })
 
 test('adds a language the platform lacks and pushes its full catalogue', async () => {
